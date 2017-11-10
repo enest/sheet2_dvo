@@ -10,13 +10,14 @@ find_package(catkin REQUIRED roscpp message_filters sensor_msgs image_geometry c
 # find_package(Boost REQUIRED COMPONENTS system)
 
 FIND_PACKAGE(Eigen REQUIRED)
-INCLUDE_DIRECTORIES(${EIGEN_INCLUDE_DIR})
+INCLUDE_DIRECTORIES(${EIGEN_INCLUDE_DIR}  ${catkin_INCLUDE_DIRS})
+include_directories(include/Sophus)
 
 find_package(PCL 1.7 REQUIRED COMPONENTS visualization)
 include_directories(${PCL_INCLUDE_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O3 -ftree-vectorize -march=native")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -std=c++11 -O3 -ftree-vectorize -march=native")
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -88,6 +89,7 @@ catkin_package(
 #  LIBRARIES sheet3_dvo
 #  CATKIN_DEPENDS other_catkin_pkg
 #  DEPENDS system_lib
+DEPENDS sophus
 )
 
 ###########
@@ -104,14 +106,14 @@ add_library(dvo
 )
 
 # Declare a cpp executable
-add_executable(sheet3_dvo_node src/sheet3_dvo_node.cpp)
+add_executable(sheet3_dvo_node src/sheet2_dvo_node.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(sheet3_dvo_node sheet3_dvo_generate_messages_cpp)
 
 # Specify libraries to link a library or executable target against
-target_link_libraries(sheet2_dvo_node
+target_link_libraries(sheet3_dvo_node
   ${catkin_LIBRARIES}
   dvo
 )
