@@ -571,28 +571,69 @@ void deriveAnalytic(const cv::Mat &grayRef, const cv::Mat &depthRef,
                    Eigen::VectorXf &residuals, Eigen::MatrixXf &J)
 {
   // TODO: implement
-    /*
+
+    cv::Mat vertexMap;
   	Eigen::Matrix3f rot;
 	Eigen::Vector3f t;
-  	convertSE3ToTf(xi, Eigen::Matrix3f &rot, Eigen::Vector3f &t);
-	Eigen::Matrix3f RKInv = rot*K.inverse();
+  	convertSE3ToTf(xi, rot, t);
 
-	Eigen::MatrixXf nImg = Eigen::Zero(grayRef.rows, grayRef.cols)-10;
-	Eigen::MatrixXf mImg = Eigen::Zero(grayRef.rows, grayRef.cols)-10;
+	depthToVertexMap(K, depthRef, vertexMap);
+	transformVertexMap(rot, t, vertexMap);
 
-	Eigen::MatrixXf xp = -1*Eigen::Ones(grayRef.rows, grayRef.cols);
-	Eigen::MatrixXf yp = -1*Eigen::Ones(grayRef.rows, grayRef.cols);
-	Eigen::MatrixXf zp = -1*Eigen::Ones(grayRef.rows, grayRef.cols);
+	int w = vertexMap.cols;
+    int h = vertexMap.rows;
+	nImg = cv::Mat::zeros(h, w, CV_32FC1);
+	mImg = cv::Mat::zeros(h, w, CV_32FC1);
+    for (int y = 0; y < h; ++y)
+    {
+        for (int x = 0; x < w; ++x)
+        {
+            cv::Vec3f pt = K*vertexMap.at<cv::Vec3f>(y, x);
 
-	for(int x = 0; x < grayRef.cols; x++)
-	{
-		for(int y = 0; y < grayRef.rows; y++)
-		{
+            nImg.at<float>(y, x) = pt.val[0]/pt.val[2];
+			mImg.at<float>(y, x) = pt.val[1]/pt.val[2];
+        }
+    }
 
+	cv::Mat xGrad
+	cv::Mat yGrad;
+
+	computeGradient(grayCur, xGrad, 0);
+    computeGradient(grayCur, yGrad, 1);
+
+    float* ptrDxIntensity = (float*)xGrad.data;
+	float* ptrDyIntensity = (float*)yGrad.data;
+
+	Ixfx = cv::Mat::zeros(h, w, CV_32FC1);
+	Iyfy = cv::Mat::zeros(h, w, CV_32FC1);
+
+	for (int y = 0; y < h; ++y)
+    {
+        for (int x = 0; x < w; ++x)
+        {
+			Ixfx.at<float>(y, x) = K(1,1)*interpolate(const float* ptrDxIntensity, float x, float y, int w, int h);
+			Iyfy.at<float>(y, x) = K(2,2)*interpolate(const float* ptrDyIntensity, float x, float y, int w, int h);
 		}
 	}
-     */
 
+	for (int y = 0; y < h; ++y)
+	{
+		for (int x = 0; x < w; ++x)
+		{
+			J = Eigen::MatrixXf::Zero(grayRef.rows*grayRef.cols, 6);
+			J.block(y*w+x, 1, 1, 1) = Ixfx.at<float>(y, x)/(vertexMap.at<cv::Vec3f>(y, x).val[2]);
+			J.block(y*w+x, 2, 1, 1) = Iyfy.at<float>(y, x)/(vertexMap.at<cv::Vec3f>(y, x).val[2]);
+			J.block(y*w+x, 3, 1, 1) = -1*(Ixfx.at<float>(y, x)*(vertexMap.at<cv::Vec3f>(y, x).val[0]) +
+										Iyfy.at<float>(y, x)*(vertexMap.at<cv::Vec3f>(y, x).val[1])).at<float>(y, x)/((vertexMap.at<cv::Vec3f>(y, x).val[2]).at<float>(y, x)*(vertexMap.at<cv::Vec3f>(y, x).val[2]));
+
+			/*Jac(:,4) = - (Ixfx .* xp .* yp) ./ (zp .* zp) - Iyfy .* (1 + (yp ./ zp).^2);
+		    Jac(:,5) = + Ixfx .* (1 + (xp ./ zp).^2) + (Iyfy .* xp .* yp) ./ (zp .* zp);
+		    Jac(:,6) = (- Ixfx .* yp + Iyfy .* xp) ./ zp;*/
+		}
+	}
+
+
+	J = -1*J;
 }
 
 
