@@ -57,7 +57,7 @@ void imagesToPointCloud( const cv::Mat& img_rgb, const cv::Mat& img_depth, pcl::
 
       pcl::PointXYZRGB& p = cloud->points[idx];
 
-      if( *depthdata == 0.f || isnan(*depthdata) ) { //|| factor * (float)(*depthdata) > 10.f ) {
+      if( *depthdata == 0.f || std::isnan(*depthdata) ) { //|| factor * (float)(*depthdata) > 10.f ) {
         p.x = std::numeric_limits<float>::quiet_NaN();
         p.y = std::numeric_limits<float>::quiet_NaN();
         p.z = std::numeric_limits<float>::quiet_NaN();
@@ -132,7 +132,7 @@ void callback(const sensor_msgs::ImageConstPtr& image_rgb, const sensor_msgs::Im
     imagesToPointCloud( img_rgb_cv_ptr->image, img_depth_cv_ptr->image, cloud );
     
     cloud->header = pcl_conversions::toPCL( image_rgb->header );
-    
+    Eigen::Matrix4f integratedTransform;
     cloud->header.frame_id = "/world";
     pcl::transformPointCloud( *cloud, *cloud, integratedTransform );
         

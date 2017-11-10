@@ -381,7 +381,7 @@ void calculateErrorImage(const Eigen::VectorXf &residuals, int w, int h, cv::Mat
 
 Eigen::VectorXf calculateError(const cv::Mat &grayRef, const cv::Mat &depthRef,
                                   const cv::Mat &grayCur, const cv::Mat &depthCur,
-                                  const Eigen::VectorXf   , const Eigen::Matrix3f &K)
+                                  const Eigen::VectorXf xi , const Eigen::Matrix3f &K)
 {
     Eigen::VectorXf residualsVec;
 
@@ -691,7 +691,9 @@ void alignImages( Eigen::Matrix4f& transform, const cv::Mat& imgGrayRef, const c
             {
                 // TODO: Implement Levenberg-Marquardt algorithm
 				A = Jt * J;
-				A = A + lambda*(A.diagonal()).asdiagonal();
+                Vec6f A_diag_vec = A.diagonal();
+                Mat6f A_diag = A_diag_vec.asDiagonal();
+				A = A + lambda*A_diag;
 				delta = -(A.ldlt().solve(b));
             }
 
