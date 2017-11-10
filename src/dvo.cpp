@@ -1,4 +1,4 @@
-// This source code is intended for use in the teaching course "Vision-Based Navigation" at Technical University Munich only. 
+// This source code is intended for use in the teaching course "Vision-Based Navigation" at Technical University Munich only.
 // Copyright 2015 Robert Maier, Joerg Stueckler, Technical University Munich
 
 #include <sheet3_dvo/dvo.h>
@@ -140,7 +140,7 @@ bool depthToVertexMap(const Eigen::Matrix3f &K, const cv::Mat &depth, cv::Mat &v
     float cy = K(1, 2);
     float fxInv = 1.0f / K(0, 0);
     float fyInv = 1.0f / K(1, 1);
-    
+
     vertexMap = cv::Mat::zeros(h, w, CV_32FC3);
     float* ptrVert = (float*)vertexMap.data;
     const float* ptrDepth = (const float*)depth.data;
@@ -152,14 +152,14 @@ bool depthToVertexMap(const Eigen::Matrix3f &K, const cv::Mat &depth, cv::Mat &v
             float x0 = (float(x) - cx) * fxInv;
             float y0 = (float(y) - cy) * fyInv;
             //depthVal = depthVal * std::sqrt(x0*x0 + y0*y0 + 1.0f);
-            
+
             size_t off = (y*w + x) * 3;
             ptrVert[off] = x0 * depthVal;
             ptrVert[off+1] = y0 * depthVal;
             ptrVert[off+2] = depthVal;
         }
     }
-    
+
     return true;
 }
 
@@ -187,12 +187,12 @@ bool savePlyFile(const std::string &filename, const std::vector<Eigen::Vector3f>
 {
     if (pts.empty())
         return false;
-    
+
     std::ofstream plyFile;
     plyFile.open(filename.c_str());
     if (!plyFile.is_open())
         return false;
-    
+
     plyFile << "ply" << std::endl;
     plyFile << "format ascii 1.0" << std::endl;
     plyFile << "element vertex " << pts.size() << std::endl;
@@ -205,7 +205,7 @@ bool savePlyFile(const std::string &filename, const std::vector<Eigen::Vector3f>
     plyFile << "element face 0" << std::endl;
     plyFile << "property list uchar int vertex_indices" << std::endl;
     plyFile << "end_header" << std::endl;
-    
+
     for (size_t i = 0; i < pts.size(); i++)
     {
         plyFile << pts[i][0] << " " << pts[i][1] << " " << pts[i][2];
@@ -213,7 +213,7 @@ bool savePlyFile(const std::string &filename, const std::vector<Eigen::Vector3f>
         plyFile << std::endl;
     }
     plyFile.close();
-    
+
     return true;
 }
 
@@ -231,12 +231,12 @@ bool savePlyFile(const std::string &filename, const cv::Mat &color, const cv::Ma
             if (pt.val[2] == 0.0 || std::isnan(pt.val[2]))
                 continue;
             pts.push_back(Eigen::Vector3f(pt.val[0], pt.val[1], pt.val[2]));
-            
+
             cv::Vec3b c = color.at<cv::Vec3b>(y, x);
             colors.push_back(Eigen::Vector3f(c.val[2], c.val[1], c.val[0]));
         }
     }
-    
+
     return savePlyFile(filename, pts, colors);
 }
 
@@ -457,7 +457,7 @@ Eigen::VectorXf calculateError(const cv::Mat &grayRef, const cv::Mat &depthRef,
 void calculateMeanStdDev(const Eigen::VectorXf &residuals, float &mean, float &stdDev)
 {
     mean = residuals.mean();
-    
+
 #if 1
     float variance = 0.0;
     for (int i = 0; i < residuals.size(); ++i)
@@ -472,7 +472,7 @@ void calculateMeanStdDev(const Eigen::VectorXf &residuals, float &mean, float &s
 void weighting(Eigen::VectorXf &residuals, Eigen::VectorXf &weights)
 {
     int n = residuals.size();
-    
+
 #if 0
     // no weighting
     weights = Eigen::VectorXf::Ones(n);
@@ -483,7 +483,7 @@ void weighting(Eigen::VectorXf &residuals, Eigen::VectorXf &weights)
     return;
 #endif
 #endif
-    
+
     // compute mean and standard deviation
     float mean, stdDev;
     calculateMeanStdDev(residuals, mean, stdDev);
@@ -514,6 +514,21 @@ void weighting(Eigen::VectorXf &residuals, Eigen::VectorXf &weights)
 #endif
 }
 
+Eigen::Matrix4f generateSE3ToTf(const Eigen::VectorXf &xi, Eigen::Matrix3f &rot)
+{
+	Eigen::Matrix3f rot;
+	Eigen::Vector3f t;
+  	convertSE3ToTf(xi, Eigen::Matrix3f &rot, Eigen::Vector3f &t);
+
+	Eigen::MatrixXf temp(3,4);
+	temp << rot, t;
+	Eigen::Zero lastrow(1,4);
+	lastrow(3)=1;
+	temp << temp, lastrow;
+
+	return temp;
+}
+
 
 void deriveNumeric(const cv::Mat &grayRef, const cv::Mat &depthRef,
                                   const cv::Mat &grayCur, const cv::Mat &depthCur,
@@ -531,15 +546,33 @@ void deriveAnalytic(const cv::Mat &grayRef, const cv::Mat &depthRef,
                    Eigen::VectorXf &residuals, Eigen::MatrixXf &J)
 {
   // TODO: implement
+  	Eigen::Matrix3f rot;
+	Eigen::Vector3f t;
+  	convertSE3ToTf(xi, Eigen::Matrix3f &rot, Eigen::Vector3f &t);
+	Eigen::Matrix3f RKInv = rot*K.inverse();
 
+	Eigen::MatrixXf nImg = Eigen::Zero(grayRef.rows, grayRef.cols)-10;
+	Eigen::MatrixXf mImg = Eigen::Zero(grayRef.rows, grayRef.cols)-10;
+
+	Eigen::MatrixXf xp = -1*Eigen::Ones(grayRef.rows, grayRef.cols);
+	Eigen::MatrixXf yp = -1*Eigen::Ones(grayRef.rows, grayRef.cols);
+	Eigen::MatrixXf zp = -1*Eigen::Ones(grayRef.rows, grayRef.cols);
+
+	for(int x = 0; x < grayRef.cols; x++)
+	{
+		for(int y = 0; y < grayRef.rows; y++)
+		{
+
+		}
+	}
 
 }
 
 
 // expects float images (CV_32FC1), grayscale scaled to [0,1], metrical depth
-void alignImages( Eigen::Matrix4f& transform, const cv::Mat& imgGrayRef, const cv::Mat& imgDepthRef, const cv::Mat& imgGrayCur, const cv::Mat& imgDepthCur, const Eigen::Matrix3f& cameraMatrix ) 
+void alignImages( Eigen::Matrix4f& transform, const cv::Mat& imgGrayRef, const cv::Mat& imgDepthRef, const cv::Mat& imgGrayCur, const cv::Mat& imgDepthCur, const Eigen::Matrix3f& cameraMatrix )
 {
-  
+
     cv::Mat grayRef = imgGrayRef;
     cv::Mat grayCur = imgGrayCur;
     cv::Mat depthRef = imgDepthRef;
@@ -586,19 +619,19 @@ void alignImages( Eigen::Matrix4f& transform, const cv::Mat& imgGrayRef, const c
     typedef Eigen::Matrix<float, 6, 1> Vec6f;
     Eigen::VectorXf xi = Eigen::VectorXf::Zero( 6 );
     Eigen::VectorXf lastXi = Eigen::VectorXf::Zero( 6 );
-    
+
 //     convertSE3ToTf(xi, rot, t);
     rot = transform.block<3,3>(0,0);
     t = transform.block<3,1>(0,3);
     convertTfToSE3( rot, t, xi );
-    
+
     std::cout << "Initial pose: " << std::endl;
     std::cout << "t = " << t.transpose() << std::endl;
     std::cout << "R = " << rot << std::endl;
-    
+
 
     bool useNumericDerivative = true;
-    
+
     bool useGN = true;
     bool useGD = false;
     bool useLM = false;
@@ -606,16 +639,16 @@ void alignImages( Eigen::Matrix4f& transform, const cv::Mat& imgGrayRef, const c
     int numIterations = 20;
     int maxLevel = numPyramidLevels-1;
     int minLevel = 1;
-    
+
     Mat6f A;                      // 6 x 6
     Mat6f diagMatA = Mat6f::Identity();
     Vec6f delta;
-    
+
     float tmr = (float)cv::getTickCount();
     for (int level = maxLevel; level >= minLevel; --level)
     {
         float lambda = 0.1;
-        
+
         grayRef = grayRefPyramid[level];
         depthRef = depthRefPyramid[level];
         grayCur = grayCurPyramid[level];
@@ -664,13 +697,13 @@ void alignImages( Eigen::Matrix4f& transform, const cv::Mat& imgGrayRef, const c
                     continue;
                 }
                 residuals = residuals.cwiseProduct(weights);
-                
+
                 // compute weighted Jacobian
                 for (int i = 0; i < residuals.size(); ++i)
                     for (int j = 0; j < J.cols(); ++j)
                         J(i, j) = J(i, j) * weights[i];
             }
-            
+
             // compute update
             Eigen::VectorXf b = Jt * residuals;
             if (useGD)
@@ -678,7 +711,7 @@ void alignImages( Eigen::Matrix4f& transform, const cv::Mat& imgGrayRef, const c
                 // TODO: Implement Gradient Descent (step size 0.001)
 				delta = -000.1 * b;
             }
-            
+
             if (useGN)
             {
                 // Gauss-Newton algorithm
@@ -686,7 +719,7 @@ void alignImages( Eigen::Matrix4f& transform, const cv::Mat& imgGrayRef, const c
                 // solve using Cholesky LDLT decomposition
                 delta = -(A.ldlt().solve(b));
             }
-            
+
             if (useLM)
             {
                 // TODO: Implement Levenberg-Marquardt algorithm
@@ -705,7 +738,7 @@ void alignImages( Eigen::Matrix4f& transform, const cv::Mat& imgGrayRef, const c
             ROS_ERROR_STREAM( << "delta = " << delta.transpose() << " size = " << delta.rows() << " x " << delta.cols() << std::endl;
             std::cout << "xi = " << xi.transpose() << std::endl;
 #endif
-            
+
             // compute error again
             error = (residuals.cwiseProduct(residuals)).mean();
 
@@ -724,7 +757,7 @@ void alignImages( Eigen::Matrix4f& transform, const cv::Mat& imgGrayRef, const c
                     lambda = lambda / 1.5;
                 }
             }
-            
+
             if (useGN || useGD)
             {
                 // break if no improvement (0.99 or 0.995)
@@ -739,16 +772,14 @@ void alignImages( Eigen::Matrix4f& transform, const cv::Mat& imgGrayRef, const c
     ROS_ERROR_STREAM( "runtime: " << tmr );
 
     convertSE3ToTf(xi, rot, t);
-    
+
     transform.block<3,3>(0,0) = rot;
     transform.block<3,1>(0,3) = t;
 
 
-    
+
 #if DEBUG_OUTPUT
     cv::waitKey(0);
 #endif
 
 }
-
-
