@@ -381,7 +381,7 @@ void calculateErrorImage(const Eigen::VectorXf &residuals, int w, int h, cv::Mat
 
 Eigen::VectorXf calculateError(const cv::Mat &grayRef, const cv::Mat &depthRef,
                                   const cv::Mat &grayCur, const cv::Mat &depthCur,
-                                  const Eigen::VectorXf &xi, const Eigen::Matrix3f &K)
+                                  const Eigen::VectorXf   , const Eigen::Matrix3f &K)
 {
     Eigen::VectorXf residualsVec;
 
@@ -531,6 +531,8 @@ void deriveAnalytic(const cv::Mat &grayRef, const cv::Mat &depthRef,
                    Eigen::VectorXf &residuals, Eigen::MatrixXf &J)
 {
   // TODO: implement
+
+
 }
 
 
@@ -674,6 +676,7 @@ void alignImages( Eigen::Matrix4f& transform, const cv::Mat& imgGrayRef, const c
             if (useGD)
             {
                 // TODO: Implement Gradient Descent (step size 0.001)
+				delta = -000.1 * b;
             }
             
             if (useGN)
@@ -687,6 +690,9 @@ void alignImages( Eigen::Matrix4f& transform, const cv::Mat& imgGrayRef, const c
             if (useLM)
             {
                 // TODO: Implement Levenberg-Marquardt algorithm
+				A = Jt * J;
+				A = A + lambda*(A.diagonal()).asdiagonal();
+				delta = -(A.ldlt().solve(b));
             }
 
             // apply update
