@@ -514,19 +514,19 @@ void weighting(Eigen::VectorXf &residuals, Eigen::VectorXf &weights)
 #endif
 }
 
-Eigen::Matrix4f generateSE3ToTf(const Eigen::VectorXf &xi, Eigen::Matrix3f &rot)
+Eigen::Matrix4f generateSE3ToTf(const Eigen::VectorXf &xi)
 {
 	Eigen::Matrix3f rot;
 	Eigen::Vector3f t;
-  	convertSE3ToTf(xi, Eigen::Matrix3f &rot, Eigen::Vector3f &t);
+  	convertSE3ToTf(xi, rot, t);
 
-	Eigen::MatrixXf temp(3,4);
-	temp << rot, t;
-	Eigen::Zero lastrow(1,4);
-	lastrow(3)=1;
-	temp << temp, lastrow;
+    Eigen::Matrix4f Tf = Eigen::Matrix4f::Zero(4,4);
 
-	return temp;
+    Tf.block<3,3>(0,0) = rot;
+    Tf.block<3,1>(0,3) = t;
+    Tf(3,3) = 1;
+
+	return Tf;
 }
 
 
@@ -535,7 +535,32 @@ void deriveNumeric(const cv::Mat &grayRef, const cv::Mat &depthRef,
                                   const Eigen::VectorXf &xi, const Eigen::Matrix3f &K,
                                   Eigen::VectorXf &residuals, Eigen::MatrixXf &J)
 {
-  // TODO: implement
+    residuals = calculateError(grayRef, depthRef, grayCur, depthCur, xi, K);
+    J = Eigen::MatrixXf::Zero(grayRef.rows*grayRef.cols, 6);
+
+    float eps = 1e-6;
+
+
+
+    for (int i = 0; i < 6; ++i) {
+        Eigen::Matrix<float, 6, 1> epsVec = Eigen::Matrix<float, 6, 1>::Zero(6);
+        epsVec[i] = eps;
+
+
+        Eigen::Matrix4f tf = generateSE3ToTf(xi)*generateSE3ToTf(epsVec);
+        Eigen::Matrix3f rot = tf.block<3, 3>(0, 0);
+        Eigen::Vector3f t = tf.block<3, 1>(0, 3);
+
+        Eigen::VectorXf xiPerm;
+
+        convertTfToSE3(rot, t, xiPerm);
+
+        Eigen::VectorXf newResidual = calculateError(grayRef, depthRef, grayCur, depthCur, xi, K);
+
+        J.block(0, i, grayRef.rows*grayRef.cols, 1) =  (newResidual - residuals)/ eps;
+    }
+
+
 }
 
 
@@ -546,6 +571,7 @@ void deriveAnalytic(const cv::Mat &grayRef, const cv::Mat &depthRef,
                    Eigen::VectorXf &residuals, Eigen::MatrixXf &J)
 {
   // TODO: implement
+    /*
   	Eigen::Matrix3f rot;
 	Eigen::Vector3f t;
   	convertSE3ToTf(xi, Eigen::Matrix3f &rot, Eigen::Vector3f &t);
@@ -565,6 +591,7 @@ void deriveAnalytic(const cv::Mat &grayRef, const cv::Mat &depthRef,
 
 		}
 	}
+     */
 
 }
 
