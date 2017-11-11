@@ -595,14 +595,8 @@ void deriveAnalytic(const cv::Mat &grayRef, const cv::Mat &depthRef,
         }
     }
 
-	cv::Mat xGrad
-	cv::Mat yGrad;
-
-	computeGradient(grayCur, xGrad, 0);
-    computeGradient(grayCur, yGrad, 1);
-
-    float* ptrDxIntensity = (float*)xGrad.data;
-	float* ptrDyIntensity = (float*)yGrad.data;
+    float* ptrDxIntensity = (float*)gradX.data;
+	float* ptrDyIntensity = (float*)gradY.data;
 
 	Ixfx = cv::Mat::zeros(h, w, CV_32FC1);
 	Iyfy = cv::Mat::zeros(h, w, CV_32FC1);
