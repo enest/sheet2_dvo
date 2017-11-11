@@ -602,12 +602,12 @@ void deriveAnalytic(const cv::Mat &grayRef, const cv::Mat &depthRef,
 		        	const float px = pt.val[0]/pt.val[2];
 					const float py = pt.val[1]/pt.val[2];
 
-					float valCur = interpolate(ptrDxIntensity, px, py, int w, int h);
+					float valCur = interpolate(ptrDxIntensity, px, py, w, h);
 					if (!std::isnan(valCur))
 	                {
 						Ixfx.at<float>(y, x) = K(1,1)*temp;
 					}
-					valCur = interpolate(ptrDyIntensity, px, py, int w, int h);
+					valCur = interpolate(ptrDyIntensity, px, py, w, h);
 					if (!std::isnan(valCur))
 	                {
 						Iyfy.at<float>(y, x) = K(2,2)*temp;
