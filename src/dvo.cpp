@@ -623,6 +623,21 @@ void deriveAnalytic(const cv::Mat &grayRef, const cv::Mat &depthRef,
 			/*Jac(:,4) = - (Ixfx .* xp .* yp) ./ (zp .* zp) - Iyfy .* (1 + (yp ./ zp).^2);
 		    Jac(:,5) = + Ixfx .* (1 + (xp ./ zp).^2) + (Iyfy .* xp .* yp) ./ (zp .* zp);
 		    Jac(:,6) = (- Ixfx .* yp + Iyfy .* xp) ./ zp;*/
+
+			A = xp ./ zp
+			B = yp ./ zp
+			C = Ixfx ./zp
+			D = Iyfy ./zp
+			E = Iyfy .* A
+			F = Ixfx .* B
+
+			Jac(:,1) = C;
+		    Jac(:,2) = D;
+			Jac(:,3) = - (C .* A + D .* B);
+		    Jac(:,4) = - (F .* A .*B) - Iyfy .* (1 + B.^2);
+		    Jac(:,5) = + Ixfx .* (1 .+ A.^2) + (E.* B);
+		    Jac(:,6) = (- F .+ E);
+
 		}
 	}
 
