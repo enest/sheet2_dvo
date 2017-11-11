@@ -580,10 +580,13 @@ void deriveAnalytic(const cv::Mat &grayRef, const cv::Mat &depthRef,
 	depthToVertexMap(K, depthRef, vertexMap);
 	transformVertexMap(rot, t, vertexMap);
 
-	int w = vertexMap.cols;
-    int h = vertexMap.rows;
-	nImg = cv::Mat::zeros(h, w, CV_32FC1);
-	mImg = cv::Mat::zeros(h, w, CV_32FC1);
+	const int w = vertexMap.cols;
+    const int h = vertexMap.rows;
+
+	Ixfx = cv::Mat::zeros(h, w, CV_32FC1);
+	Iyfy = cv::Mat::zeros(h, w, CV_32FC1);
+	const float* ptrDxIntensity = (const float*)gradX.data;
+	const float* ptrDyIntensity = (const float*)gradY.data;
 
     for (int y = 0; y < h; ++y)
     {
@@ -591,23 +594,26 @@ void deriveAnalytic(const cv::Mat &grayRef, const cv::Mat &depthRef,
         {
             cv::Vec3f pt = K*vertexMap.at<cv::Vec3f>(y, x);
 
-            nImg.at<float>(y, x) = pt.val[0]/pt.val[2];
-			mImg.at<float>(y, x) = pt.val[1]/pt.val[2];
-        }
-    }
+			if (!(pt.val[2] == 0.0 || std::isnan(pt.val[2])))
+			{
+				pt = K*p;
+				if ( pt.val[2] > 0.0)
+				{
+		        	const float px = pt.val[0]/pt.val[2];
+					const float py = pt.val[1]/pt.val[2];
 
-    float* ptrDxIntensity = (float*)gradX.data;
-	float* ptrDyIntensity = (float*)gradY.data;
-
-	Ixfx = cv::Mat::zeros(h, w, CV_32FC1);
-	Iyfy = cv::Mat::zeros(h, w, CV_32FC1);
-
-	for (int y = 0; y < h; ++y)
-    {
-        for (int x = 0; x < w; ++x)
-        {
-			Ixfx.at<float>(y, x) = K(1,1)*interpolate(const float* ptrDxIntensity, float x, float y, int w, int h);
-			Iyfy.at<float>(y, x) = K(2,2)*interpolate(const float* ptrDyIntensity, float x, float y, int w, int h);
+					float valCur = interpolate(ptrDxIntensity, px, py, int w, int h);
+					if (!std::isnan(valCur))
+	                {
+						Ixfx.at<float>(y, x) = K(1,1)*temp;
+					}
+					valCur = interpolate(ptrDyIntensity, px, py, int w, int h);
+					if (!std::isnan(valCur))
+	                {
+						Iyfy.at<float>(y, x) = K(2,2)*temp;
+					}
+				}
+			}
 		}
 	}
 
