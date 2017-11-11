@@ -584,6 +584,7 @@ void deriveAnalytic(const cv::Mat &grayRef, const cv::Mat &depthRef,
     int h = vertexMap.rows;
 	nImg = cv::Mat::zeros(h, w, CV_32FC1);
 	mImg = cv::Mat::zeros(h, w, CV_32FC1);
+
     for (int y = 0; y < h; ++y)
     {
         for (int x = 0; x < w; ++x)
@@ -610,37 +611,35 @@ void deriveAnalytic(const cv::Mat &grayRef, const cv::Mat &depthRef,
 		}
 	}
 
+	J = Eigen::MatrixXf::Zero(grayRef.rows*grayRef.cols, 6);
+	const float A, B, C, D, E, F;
 	for (int y = 0; y < h; ++y)
 	{
 		for (int x = 0; x < w; ++x)
 		{
-			J = Eigen::MatrixXf::Zero(grayRef.rows*grayRef.cols, 6);
-			J.block(y*w+x, 1, 1, 1) = Ixfx.at<float>(y, x)/(vertexMap.at<cv::Vec3f>(y, x).val[2]);
-			J.block(y*w+x, 2, 1, 1) = Iyfy.at<float>(y, x)/(vertexMap.at<cv::Vec3f>(y, x).val[2]);
-			J.block(y*w+x, 3, 1, 1) = -1*(Ixfx.at<float>(y, x)*(vertexMap.at<cv::Vec3f>(y, x).val[0]) +
-										Iyfy.at<float>(y, x)*(vertexMap.at<cv::Vec3f>(y, x).val[1])).at<float>(y, x)/((vertexMap.at<cv::Vec3f>(y, x).val[2]).at<float>(y, x)*(vertexMap.at<cv::Vec3f>(y, x).val[2]));
-
-			/*Jac(:,4) = - (Ixfx .* xp .* yp) ./ (zp .* zp) - Iyfy .* (1 + (yp ./ zp).^2);
-		    Jac(:,5) = + Ixfx .* (1 + (xp ./ zp).^2) + (Iyfy .* xp .* yp) ./ (zp .* zp);
-		    Jac(:,6) = (- Ixfx .* yp + Iyfy .* xp) ./ zp;*/
-
+			/*
 			A = xp ./ zp
 			B = yp ./ zp
 			C = Ixfx ./zp
 			D = Iyfy ./zp
 			E = Iyfy .* A
 			F = Ixfx .* B
+			*/
+			A = vertexMap.at<cv::Vec3f>(y, x).val[0]/vertexMap.at<cv::Vec3f>(y, x).val[2];
+			B = vertexMap.at<cv::Vec3f>(y, x).val[1]/vertexMap.at<cv::Vec3f>(y, x).val[2];
+			C = Ixfx.at<float>(y, x)/vertexMap.at<cv::Vec3f>(y, x).val[2];
+			D = Iyfy.at<float>(y, x)/vertexMap.at<cv::Vec3f>(y, x).val[2];
+			E = Iyfy.at<float>(y, x)*A;
+			F = Ixfx.at<float>(y, x)*B;
 
-			Jac(:,1) = C;
-		    Jac(:,2) = D;
-			Jac(:,3) = - (C .* A + D .* B);
-		    Jac(:,4) = - (F .* A .*B) - Iyfy .* (1 + B.^2);
-		    Jac(:,5) = + Ixfx .* (1 .+ A.^2) + (E.* B);
-		    Jac(:,6) = (- F .+ E);
-
+			J.block(y*w+x, 1, 1, 1) = C;
+			J.block(y*w+x, 2, 1, 1) = D;
+			J.block(y*w+x, 3, 1, 1) = - (C * A + D * B);
+			J.block(y*w+x, 4, 1, 1) = - (F * A ) -  Iyfy.at<float>(y, x) * (1 + B^2);
+		    J.block(y*w+x, 5, 1, 1) =  Ixfx.at<float>(y, x) * (1 + A^2) + (E* B);
+		    J.block(y*w+x, 6, 1, 1) = - F + E;
 		}
 	}
-
 
 	J = -1*J;
 }
