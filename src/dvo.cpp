@@ -17,6 +17,7 @@
 #include <Eigen/Cholesky>
 
 #include <opencv2/core/core.hpp>
+#include <opencv2/core/eigen.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
@@ -583,8 +584,8 @@ void deriveAnalytic(const cv::Mat &grayRef, const cv::Mat &depthRef,
 	const int w = vertexMap.cols;
     const int h = vertexMap.rows;
 
-	Ixfx = cv::Mat::zeros(h, w, CV_32FC1);
-	Iyfy = cv::Mat::zeros(h, w, CV_32FC1);
+	cv::Mat Ixfx = cv::Mat::zeros(h, w, CV_32FC1);
+	cv::Mat Iyfy = cv::Mat::zeros(h, w, CV_32FC1);
 	const float* ptrDxIntensity = (const float*)gradX.data;
 	const float* ptrDyIntensity = (const float*)gradY.data;
 
@@ -592,25 +593,26 @@ void deriveAnalytic(const cv::Mat &grayRef, const cv::Mat &depthRef,
     {
         for (int x = 0; x < w; ++x)
         {
-            cv::Vec3f pt = K*vertexMap.at<cv::Vec3f>(y, x);
+            cv::Vec3f pt = vertexMap.at<cv::Vec3f>(y, x);
+            Eigen::Vector3f pointTemp(pt.val[0], pt.val[1], pt.val[2]);
 
 			if (!(pt.val[2] == 0.0 || std::isnan(pt.val[2])))
 			{
-				pt = K*p;
+                pointTemp = K*pointTemp;
 				if ( pt.val[2] > 0.0)
 				{
-		        	const float px = pt.val[0]/pt.val[2];
-					const float py = pt.val[1]/pt.val[2];
+		        	const float px = pointTemp[0]/pointTemp[2];
+					const float py = pointTemp[1]/pointTemp[2];
 
 					float valCur = interpolate(ptrDxIntensity, px, py, w, h);
 					if (!std::isnan(valCur))
 	                {
-						Ixfx.at<float>(y, x) = K(1,1)*temp;
+						Ixfx.at<float>(y, x) = K(1,1)*valCur;
 					}
 					valCur = interpolate(ptrDyIntensity, px, py, w, h);
 					if (!std::isnan(valCur))
 	                {
-						Iyfy.at<float>(y, x) = K(2,2)*temp;
+						Iyfy.at<float>(y, x) = K(2,2)*valCur;
 					}
 				}
 			}
@@ -618,7 +620,7 @@ void deriveAnalytic(const cv::Mat &grayRef, const cv::Mat &depthRef,
 	}
 
 	J = Eigen::MatrixXf::Zero(grayRef.rows*grayRef.cols, 6);
-	const float A, B, C, D, E, F;
+    float A, B, C, D, E, F;
 	for (int y = 0; y < h; ++y)
 	{
 		for (int x = 0; x < w; ++x)
@@ -638,12 +640,12 @@ void deriveAnalytic(const cv::Mat &grayRef, const cv::Mat &depthRef,
 			E = Iyfy.at<float>(y, x)*A;
 			F = Ixfx.at<float>(y, x)*B;
 
-			J.block(y*w+x, 1, 1, 1) = C;
-			J.block(y*w+x, 2, 1, 1) = D;
-			J.block(y*w+x, 3, 1, 1) = - (C * A + D * B);
-			J.block(y*w+x, 4, 1, 1) = - (F * A ) -  Iyfy.at<float>(y, x) * (1 + B^2);
-		    J.block(y*w+x, 5, 1, 1) =  Ixfx.at<float>(y, x) * (1 + A^2) + (E* B);
-		    J.block(y*w+x, 6, 1, 1) = - F + E;
+			J(y*w+x, 1) = C;
+			J(y*w+x, 2) = D;
+			J(y*w+x, 3) = - (C * A + D * B);
+			J(y*w+x, 4) = - (F * A ) -  Iyfy.at<float>(y, x) * (1 + B*B);
+		    J(y*w+x, 5) =  Ixfx.at<float>(y, x) * (1 + A*A) + (E* B);
+		    J(y*w+x, 6) = - F + E;
 		}
 	}
 
