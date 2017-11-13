@@ -106,14 +106,14 @@ add_library(dvo
 )
 
 # Declare a cpp executable
-add_executable(sheet3_dvo_node src/sheet2_dvo_node.cpp)
+add_executable(sheet2_dvo_node src/sheet2_dvo_node.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
-# add_dependencies(sheet3_dvo_node sheet3_dvo_generate_messages_cpp)
+# add_dependencies(sheet2_dvo_node sheet3_dvo_generate_messages_cpp)
 
 # Specify libraries to link a library or executable target against
-target_link_libraries(sheet3_dvo_node
+target_link_libraries(sheet2_dvo_node
   ${catkin_LIBRARIES}
   dvo
 )
@@ -133,7 +133,7 @@ target_link_libraries(sheet3_dvo_node
 # )
 
 ## Mark executables and/or libraries for installation
-# install(TARGETS sheet3_dvo sheet3_dvo_node
+# install(TARGETS sheet3_dvo sheet2_dvo_node
 #   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
