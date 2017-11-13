@@ -634,19 +634,38 @@ void deriveAnalytic(const cv::Mat &grayRef, const cv::Mat &depthRef,
 			E = Iyfy .* A
 			F = Ixfx .* B
 			*/
-			A = vertexMap.at<cv::Vec3f>(y, x).val[0]/vertexMap.at<cv::Vec3f>(y, x).val[2];
-			B = vertexMap.at<cv::Vec3f>(y, x).val[1]/vertexMap.at<cv::Vec3f>(y, x).val[2];
-			C = Ixfx.at<float>(y, x)/vertexMap.at<cv::Vec3f>(y, x).val[2];
-			D = Iyfy.at<float>(y, x)/vertexMap.at<cv::Vec3f>(y, x).val[2];
-			E = Iyfy.at<float>(y, x)*A;
-			F = Ixfx.at<float>(y, x)*B;
 
-			J(y*w+x, 0) = C;
-			J(y*w+x, 1) = D;
-			J(y*w+x, 2) = - (C * A + D * B);
-			J(y*w+x, 3) = - (F * A ) -  Iyfy.at<float>(y, x) * (1 + B*B);
-		    J(y*w+x, 4) =  Ixfx.at<float>(y, x) * (1 + A*A) + (E* B);
-		    J(y*w+x, 5) = - F + E;
+            float depth = vertexMap.at<cv::Vec3f>(y, x).val[2];
+
+            if (!(depth == 0.0 || std::isnan(depth)))
+            {
+                A = vertexMap.at<cv::Vec3f>(y, x).val[0]/depth;
+                B = vertexMap.at<cv::Vec3f>(y, x).val[1]/depth;
+                C = Ixfx.at<float>(y, x)/depth;
+                D = Iyfy.at<float>(y, x)/depth;
+                E = Iyfy.at<float>(y, x)*A;
+                F = Ixfx.at<float>(y, x)*B;
+
+                J(y*w+x, 0) = C;
+                J(y*w+x, 1) = D;
+                J(y*w+x, 2) = - (C * A + D * B);
+                J(y*w+x, 3) = - (F * A ) -  Iyfy.at<float>(y, x) * (1 + B*B);
+                J(y*w+x, 4) =  Ixfx.at<float>(y, x) * (1 + A*A) + (E* B);
+                J(y*w+x, 5) = - F + E;
+            }
+            else
+            {
+                J(y*w+x, 0) = 0;
+                J(y*w+x, 1) = 0;
+                J(y*w+x, 2) = 0;
+                J(y*w+x, 3) = 0;
+                J(y*w+x, 4) = 0;
+                J(y*w+x, 5) = 0;
+            }
+
+
+
+
 		}
 	}
 
