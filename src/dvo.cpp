@@ -571,7 +571,7 @@ void deriveAnalytic(const cv::Mat &grayRef, const cv::Mat &depthRef,
                    const Eigen::VectorXf &xi, const Eigen::Matrix3f &K,
                    Eigen::VectorXf &residuals, Eigen::MatrixXf &J)
 {
-  // TODO: implement
+    residuals = calculateError(grayRef, depthRef, grayCur, depthCur, xi, K);
 
     cv::Mat vertexMap;
   	Eigen::Matrix3f rot;
