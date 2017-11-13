@@ -620,6 +620,7 @@ void deriveAnalytic(const cv::Mat &grayRef, const cv::Mat &depthRef,
 	}
 
 	J = Eigen::MatrixXf::Zero(grayRef.rows*grayRef.cols, 6);
+
     float A, B, C, D, E, F;
 	for (int y = 0; y < h; ++y)
 	{
@@ -640,12 +641,12 @@ void deriveAnalytic(const cv::Mat &grayRef, const cv::Mat &depthRef,
 			E = Iyfy.at<float>(y, x)*A;
 			F = Ixfx.at<float>(y, x)*B;
 
-			J(y*w+x, 1) = C;
-			J(y*w+x, 2) = D;
-			J(y*w+x, 3) = - (C * A + D * B);
-			J(y*w+x, 4) = - (F * A ) -  Iyfy.at<float>(y, x) * (1 + B*B);
-		    J(y*w+x, 5) =  Ixfx.at<float>(y, x) * (1 + A*A) + (E* B);
-		    J(y*w+x, 6) = - F + E;
+			J(y*w+x, 0) = C;
+			J(y*w+x, 1) = D;
+			J(y*w+x, 2) = - (C * A + D * B);
+			J(y*w+x, 3) = - (F * A ) -  Iyfy.at<float>(y, x) * (1 + B*B);
+		    J(y*w+x, 4) =  Ixfx.at<float>(y, x) * (1 + A*A) + (E* B);
+		    J(y*w+x, 5) = - F + E;
 		}
 	}
 
@@ -714,7 +715,7 @@ void alignImages( Eigen::Matrix4f& transform, const cv::Mat& imgGrayRef, const c
     std::cout << "R = " << rot << std::endl;
 
 
-    bool useNumericDerivative = true;
+    bool useNumericDerivative = false;
 
     bool useGN = true;
     bool useGD = false;
