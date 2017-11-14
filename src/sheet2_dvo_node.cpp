@@ -31,6 +31,7 @@
 
 cv::Mat grayRef, depthRef;
 ros::Publisher pub_pointcloud;
+tf::TransformListener *tfListener;
 
 void imagesToPointCloud( const cv::Mat& img_rgb, const cv::Mat& img_depth, pcl::PointCloud< pcl::PointXYZRGB >::Ptr& cloud, unsigned int downsampling = 1 ) {
 
@@ -92,6 +93,33 @@ void imagesToPointCloud( const cv::Mat& img_rgb, const cv::Mat& img_depth, pcl::
 
 }
 
+bool dumpTraj(const std::string &filename, const Eigen::Quaternionf q, const Eigen::Vector3f t)
+{
+    std::ofstream trajFile;
+    trajFile.open(filename.c_str(), std::ofstream::out | std::ofstream::app);
+    if (!trajFile.is_open())
+        return false;
+
+    //'timestamp tx ty tz qx qy qz qw'
+
+    std::time_t timestamp = std::time(nullptr);
+
+    trajFile << timestamp  << " "
+             << t[0] << " "
+             << t[1] << " "
+             << t[2] << " "
+             << q.x() << " "
+             << q.y() << " "
+             << q.z() << " "
+             << q.w() << " "
+             << std::endl;
+
+
+    trajFile.close();
+
+    return true;
+}
+
 bool dumpTraj(const std::string &filename, const Eigen::Matrix4f &transform)
 {
     std::ofstream trajFile;
@@ -148,9 +176,9 @@ void callback(const sensor_msgs::ImageConstPtr& image_rgb, const sensor_msgs::Im
     cv_bridge::CvImageConstPtr img_rgb_cv_ptr = cv_bridge::toCvShare( image_rgb, "bgr8" );
     cv_bridge::CvImageConstPtr img_depth_cv_ptr = cv_bridge::toCvShare( image_depth, "32FC1" );
     
-//    cv::imshow("img_rgb", img_rgb_cv_ptr->image );
-//    cv::imshow("img_depth", 0.2*img_depth_cv_ptr->image );
-//    cv::waitKey(10);
+    //cv::imshow("img_rgb", img_rgb_cv_ptr->image );
+    //cv::imshow("img_depth", 0.2*img_depth_cv_ptr->image );
+    //cv::waitKey(10);
     
     Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
     
@@ -172,10 +200,10 @@ void callback(const sensor_msgs::ImageConstPtr& image_rgb, const sensor_msgs::Im
     
 
     // TODO: dump trajectory for evaluation
-    if(!dumpTraj(std::string("traj.txt"), transform))
+    if(!dumpTraj(std::string("/home/matiasvc/traj.txt"), transform))
         ROS_ERROR_STREAM( "Couldn't open the text file for dumping trajectories!" << std::endl );
-    
-    
+
+
     pcl::PointCloud< pcl::PointXYZRGB >::Ptr cloud = pcl::PointCloud< pcl::PointXYZRGB >::Ptr( new pcl::PointCloud< pcl::PointXYZRGB > );
     imagesToPointCloud( img_rgb_cv_ptr->image, img_depth_cv_ptr->image, cloud );
     
@@ -185,8 +213,27 @@ void callback(const sensor_msgs::ImageConstPtr& image_rgb, const sensor_msgs::Im
     pcl::transformPointCloud( *cloud, *cloud, integratedTransform );
         
     pub_pointcloud.publish( *cloud );
-    
-            
+
+    tf::StampedTransform t;
+    try
+    {
+        tfListener->waitForTransform("/world", "/openni_depth_optical_frame", image_rgb->header.stamp, ros::Duration(1.0f));
+        tfListener->lookupTransform("/world", "/openni_depth_optical_frame", image_rgb->header.stamp, t);
+    }
+    catch (tf::TransformException ex)
+    {
+        ROS_ERROR("%s", ex.what());
+        return;
+    }
+
+    const tf::Vector3 groundT = t.getOrigin();
+    const tf::Quaternion groundQ = t.getRotation();
+
+    const Eigen::Quaternionf eigQ(groundQ.x(), groundQ.y(), groundQ.z(), groundQ.w());
+    const Eigen::Vector3f eigT(groundT.x(), groundT.y(), groundT.z());
+
+    if(!dumpTraj(std::string("/home/matiasvc/traj-ground.txt"), eigQ, eigT))
+        ROS_ERROR_STREAM( "Couldn't open the text file for dumping ground trajectories!" << std::endl );
 }
 
 int main(int argc, char** argv)
@@ -203,9 +250,10 @@ int main(int argc, char** argv)
   sync.registerCallback(boost::bind(&callback, _1, _2));
   
   pub_pointcloud = nh.advertise< pcl::PointCloud< pcl::PointXYZRGB > >( "pointcloud", 1 );
-  
+  tfListener = new tf::TransformListener();
 
-  ros::Rate loop_rate(100);
+
+    ros::Rate loop_rate(100);
 
   while (ros::ok())
   {
