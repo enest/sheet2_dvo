@@ -548,13 +548,15 @@ void deriveNumeric(const cv::Mat &grayRef, const cv::Mat &depthRef,
         epsVec[i] = eps;
 
 
-        Eigen::Matrix4f tf = generateSE3ToTf(xi)*generateSE3ToTf(epsVec);
+        /*Eigen::Matrix4f tf = generateSE3ToTf(xi)*generateSE3ToTf(epsVec);
         Eigen::Matrix3f rot = tf.block<3, 3>(0, 0);
         Eigen::Vector3f t = tf.block<3, 1>(0, 3);
 
         Eigen::VectorXf xiPerm;
 
-        convertTfToSE3(rot, t, xiPerm);
+        convertTfToSE3(rot, t, xiPerm);*/
+
+	Eigen::VectorXf xiPerm = Sophus::SE3f::log( Sophus::SE3f::exp(xi) * Sophus::SE3f::exp(epsVec) );
 
         Eigen::VectorXf newResidual = calculateError(grayRef, depthRef, grayCur, depthCur, xiPerm, K);
 

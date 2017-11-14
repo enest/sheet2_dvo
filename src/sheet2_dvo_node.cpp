@@ -32,7 +32,8 @@
 cv::Mat grayRef, depthRef;
 ros::Publisher pub_pointcloud;
 tf::TransformListener *tfListener;
-
+Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
+    
 void imagesToPointCloud( const cv::Mat& img_rgb, const cv::Mat& img_depth, pcl::PointCloud< pcl::PointXYZRGB >::Ptr& cloud, unsigned int downsampling = 1 ) {
 
   cloud->is_dense = true;
@@ -180,7 +181,7 @@ void callback(const sensor_msgs::ImageConstPtr& image_rgb, const sensor_msgs::Im
     //cv::imshow("img_depth", 0.2*img_depth_cv_ptr->image );
     //cv::waitKey(10);
     
-    Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
+    //Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
     
     cv::Mat grayCurInt;
     cv::cvtColor( img_rgb_cv_ptr->image.clone(), grayCurInt, CV_BGR2GRAY);
