@@ -556,7 +556,7 @@ void deriveNumeric(const cv::Mat &grayRef, const cv::Mat &depthRef,
 
         convertTfToSE3(rot, t, xiPerm);
 
-        Eigen::VectorXf newResidual = calculateError(grayRef, depthRef, grayCur, depthCur, xi, K);
+        Eigen::VectorXf newResidual = calculateError(grayRef, depthRef, grayCur, depthCur, xiPerm, K);
 
         J.block(0, i, grayRef.rows*grayRef.cols, 1) =  (newResidual - residuals)/ eps;
     }
@@ -607,12 +607,12 @@ void deriveAnalytic(const cv::Mat &grayRef, const cv::Mat &depthRef,
 					float valCur = interpolate(ptrDxIntensity, px, py, w, h);
 					if (!std::isnan(valCur))
 	                {
-						Ixfx.at<float>(y, x) = K(1,1)*valCur;
+						Ixfx.at<float>(y, x) = K(0,0)*valCur;
 					}
 					valCur = interpolate(ptrDyIntensity, px, py, w, h);
 					if (!std::isnan(valCur))
 	                {
-						Iyfy.at<float>(y, x) = K(2,2)*valCur;
+						Iyfy.at<float>(y, x) = K(1,1)*valCur;
 					}
 				}
 			}
@@ -653,7 +653,7 @@ void deriveAnalytic(const cv::Mat &grayRef, const cv::Mat &depthRef,
                 J(y*w+x, 4) =  Ixfx.at<float>(y, x) * (1 + A*A) + (E* B);
                 J(y*w+x, 5) = - F + E;
             }
-            else
+            /*else
             {
                 J(y*w+x, 0) = 0;
                 J(y*w+x, 1) = 0;
@@ -661,7 +661,7 @@ void deriveAnalytic(const cv::Mat &grayRef, const cv::Mat &depthRef,
                 J(y*w+x, 3) = 0;
                 J(y*w+x, 4) = 0;
                 J(y*w+x, 5) = 0;
-            }
+            }*/
 
 
 
@@ -736,9 +736,9 @@ void alignImages( Eigen::Matrix4f& transform, const cv::Mat& imgGrayRef, const c
 
     bool useNumericDerivative = false;
 
-    bool useGN = true;
+    bool useGN = false;
     bool useGD = false;
-    bool useLM = false;
+    bool useLM = true;
     bool useWeights = true;
     int numIterations = 20;
     int maxLevel = numPyramidLevels-1;

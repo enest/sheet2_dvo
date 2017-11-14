@@ -25,6 +25,9 @@
 
 #include <fstream>
 
+#include <Eigen/Geometry>
+#include <ctime>
+
 
 cv::Mat grayRef, depthRef;
 ros::Publisher pub_pointcloud;
@@ -89,6 +92,49 @@ void imagesToPointCloud( const cv::Mat& img_rgb, const cv::Mat& img_depth, pcl::
 
 }
 
+bool dumpTraj(const std::string &filename, const Eigen::Matrix4f &transform)
+{
+    std::ofstream trajFile;
+    trajFile.open(filename.c_str(), std::ofstream::out | std::ofstream::app);
+    if (!trajFile.is_open())
+        return false;
+
+    //'timestamp tx ty tz qx qy qz qw'
+
+    Eigen::Matrix3f rot;
+    Eigen::Vector3f t;
+
+    rot = transform.block<3,3>(0,0);
+    t = transform.block<3,1>(0,3);
+    Eigen::Quaternionf temp(rot);
+    std::time_t timestamp = std::time(nullptr);
+
+    trajFile << timestamp  << " "
+             << t[0] << " "
+             << t[1] << " "
+             << t[2] << " "
+             << temp.x() << " "
+             << temp.y() << " "
+             << temp.z() << " "
+             << temp.w() << " "
+             << std::endl;
+
+
+    trajFile.close();
+
+    /*ROS_ERROR_STREAM(  timestamp  << " "
+                      << t[0] << " "
+                      << t[1] << " "
+                      << t[2] << " "
+                      << temp.x() << " "
+                      << temp.y() << " "
+                      << temp.z() << " "
+                      << temp.w() << " "
+                      << std::endl );*/
+
+    return true;
+}
+
 
 
 void callback(const sensor_msgs::ImageConstPtr& image_rgb, const sensor_msgs::ImageConstPtr& image_depth)
@@ -122,10 +168,12 @@ void callback(const sensor_msgs::ImageConstPtr& image_rgb, const sensor_msgs::Im
     grayRef = grayCur.clone();
     depthRef = depthCur.clone();
     
-     ROS_ERROR_STREAM( "transform: " << transform << std::endl );
+    ROS_ERROR_STREAM( "transform: " << transform << std::endl );
     
 
-    // TODO: dump trajectory for evaluation 
+    // TODO: dump trajectory for evaluation
+    if(!dumpTraj(std::string("traj.txt"), transform))
+        ROS_ERROR_STREAM( "Couldn't open the text file for dumping trajectories!" << std::endl );
     
     
     pcl::PointCloud< pcl::PointXYZRGB >::Ptr cloud = pcl::PointCloud< pcl::PointXYZRGB >::Ptr( new pcl::PointCloud< pcl::PointXYZRGB > );
