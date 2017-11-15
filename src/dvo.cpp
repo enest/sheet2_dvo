@@ -539,7 +539,7 @@ void deriveNumeric(const cv::Mat &grayRef, const cv::Mat &depthRef,
     residuals = calculateError(grayRef, depthRef, grayCur, depthCur, xi, K);
     J = Eigen::MatrixXf::Zero(grayRef.rows*grayRef.cols, 6);
 
-    float eps = 1e-6;
+    float eps = std::numeric_limits<float>::epsilon(); //1e-6;
 
 
 
@@ -556,13 +556,29 @@ void deriveNumeric(const cv::Mat &grayRef, const cv::Mat &depthRef,
 
         convertTfToSE3(rot, t, xiPerm);*/
 
-	Eigen::VectorXf xiPerm = Sophus::SE3f::log( Sophus::SE3f::exp(xi) * Sophus::SE3f::exp(epsVec) );
+	    Eigen::VectorXf xiPerm = Sophus::SE3f::log( Sophus::SE3f::exp(xi) * Sophus::SE3f::exp(epsVec) );
 
         Eigen::VectorXf newResidual = calculateError(grayRef, depthRef, grayCur, depthCur, xiPerm, K);
+
 
         J.block(0, i, grayRef.rows*grayRef.cols, 1) =  (newResidual - residuals)/ eps;
     }
 
+    for(int i = 0; i < grayRef.rows*grayRef.cols; ++i) {
+        bool toZero = false;
+
+        for (int j = 0; j < 6; ++j) {
+            if(std::isnan(J(i,j))){
+                toZero = true;
+                break;
+            }
+        }
+        if (toZero)
+        {
+            J.block(i, 0, 1, 6) =  Eigen::MatrixXf::Zero(1, 6);
+            residuals[i] =  0.0;
+        }
+    }
 
 }
 
@@ -671,6 +687,22 @@ void deriveAnalytic(const cv::Mat &grayRef, const cv::Mat &depthRef,
 		}
 	}
 
+    for(int i = 0; i < grayRef.rows*grayRef.cols; ++i) {
+        bool toZero = false;
+
+        for (int j = 0; j < 6; ++j) {
+            if(std::isnan(J(i,j))){
+                toZero = true;
+                break;
+            }
+        }
+        if (toZero)
+        {
+            J.block(i, 0, 1, 6) =  Eigen::MatrixXf::Zero(1, 6);
+            residuals[i] =  0.0;
+        }
+    }
+
 	J = -1*J;
 }
 
@@ -685,7 +717,7 @@ void alignImages( Eigen::Matrix4f& transform, const cv::Mat& imgGrayRef, const c
     cv::Mat depthCur = imgDepthCur;
 
     // downsampling
-    int numPyramidLevels = 5;
+    int numPyramidLevels = 9;
     std::vector<Eigen::Matrix3f> kPyramid;
     kPyramid.push_back(cameraMatrix);
     std::vector<cv::Mat> grayRefPyramid;
@@ -742,7 +774,7 @@ void alignImages( Eigen::Matrix4f& transform, const cv::Mat& imgGrayRef, const c
     bool useGD = false;
     bool useLM = true;
     bool useWeights = true;
-    int numIterations = 20;
+    int numIterations = 90;
     int maxLevel = numPyramidLevels-1;
     int minLevel = 1;
 
@@ -750,8 +782,10 @@ void alignImages( Eigen::Matrix4f& transform, const cv::Mat& imgGrayRef, const c
     Mat6f diagMatA = Mat6f::Identity();
     Vec6f delta;
 
+    float errorDebug = 0;
+
     float tmr = (float)cv::getTickCount();
-    for (int level = maxLevel; level >= minLevel; --level)
+    for (int level = maxLevel; level >= minLevel; level =level-2)
     {
         float lambda = 0.1;
 
@@ -785,7 +819,7 @@ void alignImages( Eigen::Matrix4f& transform, const cv::Mat& imgGrayRef, const c
             cv::Mat errorImage;
             calculateErrorImage(residuals, grayRef.cols, grayRef.rows, errorImage);
             cv::imshow("error", errorImage);
-            cv::waitKey(100);
+            cv::waitKey(30);
 #endif
 
             // calculate error
@@ -815,7 +849,7 @@ void alignImages( Eigen::Matrix4f& transform, const cv::Mat& imgGrayRef, const c
             if (useGD)
             {
                 // TODO: Implement Gradient Descent (step size 0.001)
-				delta = -000.1 * b;
+				delta = 000.1 * b;
             }
 
             if (useGN)
@@ -840,10 +874,10 @@ void alignImages( Eigen::Matrix4f& transform, const cv::Mat& imgGrayRef, const c
             // right-multiplicative increment on SE3
             lastXi = xi;
             xi = Sophus::SE3f::log( Sophus::SE3f::exp(xi) * Sophus::SE3f::exp(delta) );
-#if DEBUG_OUTPUT
-            ROS_ERROR_STREAM( << "delta = " << delta.transpose() << " size = " << delta.rows() << " x " << delta.cols() << std::endl;
-            std::cout << "xi = " << xi.transpose() << std::endl;
-#endif
+/*#if DEBUG_OUTPUT
+            ROS_ERROR_STREAM( "delta = " << delta.transpose() << " size = " << delta.rows() << " x " << delta.cols() << std::endl;
+            std::cout << "xi = " << xi.transpose() << std::endl);
+#endif*/
 
             // compute error again
             error = (residuals.cwiseProduct(residuals)).mean();
@@ -872,10 +906,12 @@ void alignImages( Eigen::Matrix4f& transform, const cv::Mat& imgGrayRef, const c
             }
 
             errorLast = error;
+            errorDebug = error;
         }
     }
     tmr = ((float)cv::getTickCount() - tmr)/cv::getTickFrequency();
     ROS_ERROR_STREAM( "runtime: " << tmr );
+    ROS_ERROR_STREAM( "error: " << errorDebug );
 
     convertSE3ToTf(xi, rot, t);
 
@@ -885,7 +921,8 @@ void alignImages( Eigen::Matrix4f& transform, const cv::Mat& imgGrayRef, const c
 
 
 #if DEBUG_OUTPUT
-    cv::waitKey(0);
+    cv::waitKey(30);
+//    cv::waitKey(0);
 #endif
 
 }

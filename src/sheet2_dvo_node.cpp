@@ -32,7 +32,7 @@
 cv::Mat grayRef, depthRef;
 ros::Publisher pub_pointcloud;
 tf::TransformListener *tfListener;
-Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
+Eigen::Matrix4f globalTransform = Eigen::Matrix4f::Identity();
     
 void imagesToPointCloud( const cv::Mat& img_rgb, const cv::Mat& img_depth, pcl::PointCloud< pcl::PointXYZRGB >::Ptr& cloud, unsigned int downsampling = 1 ) {
 
@@ -165,7 +165,6 @@ bool dumpTraj(const std::string &filename, const Eigen::Matrix4f &transform)
 }
 
 
-
 void callback(const sensor_msgs::ImageConstPtr& image_rgb, const sensor_msgs::ImageConstPtr& image_depth)
 {
   
@@ -176,12 +175,14 @@ void callback(const sensor_msgs::ImageConstPtr& image_rgb, const sensor_msgs::Im
     
     cv_bridge::CvImageConstPtr img_rgb_cv_ptr = cv_bridge::toCvShare( image_rgb, "bgr8" );
     cv_bridge::CvImageConstPtr img_depth_cv_ptr = cv_bridge::toCvShare( image_depth, "32FC1" );
+
+#if DEBUG_OUTPUT
+    cv::imshow("img_rgb", img_rgb_cv_ptr->image );
+    cv::imshow("img_depth", 0.2*img_depth_cv_ptr->image );
+    cv::waitKey(10);
+#endif
     
-    //cv::imshow("img_rgb", img_rgb_cv_ptr->image );
-    //cv::imshow("img_depth", 0.2*img_depth_cv_ptr->image );
-    //cv::waitKey(10);
-    
-    //Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
+    Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
     
     cv::Mat grayCurInt;
     cv::cvtColor( img_rgb_cv_ptr->image.clone(), grayCurInt, CV_BGR2GRAY);
@@ -196,12 +197,15 @@ void callback(const sensor_msgs::ImageConstPtr& image_rgb, const sensor_msgs::Im
     
     grayRef = grayCur.clone();
     depthRef = depthCur.clone();
-    
-    ROS_ERROR_STREAM( "transform: " << transform << std::endl );
+    //globalTransform = globalTransform*transform;
+
+#if DEBUG_OUTPUT
+    ROS_ERROR_STREAM( "\ntransform: \n" << transform << std::endl );
+#endif
     
 
     // TODO: dump trajectory for evaluation
-    if(!dumpTraj(std::string("/home/matiasvc/traj.txt"), transform))
+    if(!dumpTraj(std::string("/home/enes/Visnav/data/traj.txt"), transform))
         ROS_ERROR_STREAM( "Couldn't open the text file for dumping trajectories!" << std::endl );
 
 
@@ -227,14 +231,39 @@ void callback(const sensor_msgs::ImageConstPtr& image_rgb, const sensor_msgs::Im
         return;
     }
 
-    const tf::Vector3 groundT = t.getOrigin();
+    /*const tf::Vector3 groundT = t.getOrigin();
     const tf::Quaternion groundQ = t.getRotation();
 
     const Eigen::Quaternionf eigQ(groundQ.x(), groundQ.y(), groundQ.z(), groundQ.w());
-    const Eigen::Vector3f eigT(groundT.x(), groundT.y(), groundT.z());
+    const Eigen::Vector3f eigT(groundT.x(), groundT.y(), groundT.z());*/
 
-    if(!dumpTraj(std::string("/home/matiasvc/traj-ground.txt"), eigQ, eigT))
-        ROS_ERROR_STREAM( "Couldn't open the text file for dumping ground trajectories!" << std::endl );
+    /*if(!dumpTraj(std::string("/home/matiasvc/traj-ground.txt"), eigQ, eigT))
+        ROS_ERROR_STREAM( "Couldn't open the text file for dumping ground trajectories!" << std::endl );*/
+
+    /*Eigen::Quaternionf localQ(globalTransform.block<3,3>(0,0));
+    Eigen::Vector3f localT = globalTransform.block<3,1>(0,3);
+
+    ROS_ERROR_STREAM( "transform: " <<    localT.x() << " "
+                                       << localT.y() << " "
+                                       << localT.z() << " "
+                                       << localQ.x() << " "
+                                       << localQ.y() << " "
+                                       << localQ.z() << " "
+                                       << localQ.w() << " "
+                                       << std::endl);*/
+
+    /*Eigen::Quaternionf globalQ(globalTransform.block<3,3>(0,0));
+    Eigen::Vector3f globalT = globalTransform.block<3,1>(0,3);
+
+    ROS_ERROR_STREAM( "global transform: " << globalT.x() << " "
+                                          << globalT.y() << " "
+                                          << globalT.z() << " "
+                                          << globalQ.x() << " "
+                                          << globalQ.y() << " "
+                                          << globalQ.z() << " "
+                                          << globalQ.w() << " "
+                                          << std::endl);*/
+
 }
 
 int main(int argc, char** argv)
