@@ -849,7 +849,7 @@ void alignImages( Eigen::Matrix4f& transform, const cv::Mat& imgGrayRef, const c
             if (useGD)
             {
                 // TODO: Implement Gradient Descent (step size 0.001)
-				delta = 000.1 * b;
+				delta = -000.1 * b;
             }
 
             if (useGN)
